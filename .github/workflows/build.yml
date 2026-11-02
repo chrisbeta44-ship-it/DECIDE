@@ -1,48 +1,51 @@
+
 name: DECIDE Android APK
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Baixar arquivos
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Configurar Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Configurar Java
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Configurar Android
-        uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v3
 
-      - name: Extrair projeto
+      - name: Extrair e localizar projeto
         run: |
-          mkdir projeto
+          set -euxo pipefail
+          mkdir -p projeto
           unzip -o DECIDE-Android-MVP-1.1-COMPILAR-NO-CELULAR.zip -d projeto
-          cd projeto/DECIDE
+          find projeto -name package.json
+          APP_DIR=$(dirname "$(find projeto -name package.json -not -path '*/node_modules/*' -print -quit)")
+          test -n "$APP_DIR"
+          cd "$APP_DIR"
           npm install
           npm run build
           npx cap add android
           npx cap sync android
+          echo "$APP_DIR" > "$GITHUB_WORKSPACE/app-dir.txt"
 
       - name: Compilar APK
         run: |
-          cd projeto/DECIDE/android
+          cd "$(cat app-dir.txt)/android"
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Disponibilizar APK
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: DECIDE-APK
-          path: projeto/DECIDE/android/app/build/outputs/apk/debug/app-debug.apk
+          path: '**/android/app/build/outputs/apk/debug/app-debug.apk'
+          if-no-files-found: error
