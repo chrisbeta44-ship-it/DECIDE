@@ -1,0 +1,48 @@
+name: DECIDE Android APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar arquivos
+        uses: actions/checkout@v4
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Configurar Android
+        uses: android-actions/setup-android@v3
+
+      - name: Extrair projeto
+        run: |
+          mkdir projeto
+          unzip -o DECIDE-Android-MVP-1.1-COMPILAR-NO-CELULAR.zip -d projeto
+          cd projeto/DECIDE
+          npm install
+          npm run build
+          npx cap add android
+          npx cap sync android
+
+      - name: Compilar APK
+        run: |
+          cd projeto/DECIDE/android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Disponibilizar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DECIDE-APK
+          path: projeto/DECIDE/android/app/build/outputs/apk/debug/app-debug.apk
